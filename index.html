@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>三聯式發票開立計算工具</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+      background: #f5f4f0;
+      color: #1a1a18;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container { max-width: 720px; margin: 0 auto; }
+
+    h1 { font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; }
+
+    label { font-size: 13px; color: #6b6b68; display: block; margin-bottom: 4px; }
+
+    input {
+      width: 100%;
+      font-size: 14px;
+      font-family: inherit;
+      padding: 7px 10px;
+      border: 0.5px solid rgba(0,0,0,0.2);
+      border-radius: 8px;
+      background: #fff;
+      color: #1a1a18;
+      outline: none;
+    }
+    input:focus {
+      border-color: rgba(0,0,0,0.4);
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+    }
+
+    .card {
+      background: #fff;
+      border: 0.5px solid rgba(0,0,0,0.12);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: #6b6b68;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 10px;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .header-row .section-title { margin-bottom: 0; }
+
+    .top-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .tax-info {
+      font-size: 13px;
+      color: #6b6b68;
+      padding: 7px 12px;
+      background: #f5f4f0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 36px;
+    }
+    .tax-badge {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: #deeaf8;
+      color: #1a5fa8;
+    }
+
+    table.items { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    table.items th {
+      font-size: 12px;
+      color: #6b6b68;
+      font-weight: 400;
+      text-align: left;
+      padding: 0 4px 8px 0;
+      border-bottom: 0.5px solid rgba(0,0,0,0.12);
+      white-space: nowrap;
+    }
+    table.items th.r { text-align: right; }
+    table.items td { padding: 5px 4px 5px 0; vertical-align: middle; }
+    table.items tr { border-bottom: 0.5px solid rgba(0,0,0,0.08); }
+    table.items tr:last-child { border-bottom: none; }
+    table.items input { font-size: 13px; }
+
+    .row-clear-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #999;
+      font-size: 15px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: inherit;
+      line-height: 1;
+    }
+    .row-clear-btn:hover { color: #1a1a18; background: #f0efeb; }
+
+    .reset-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      padding: 6px 14px;
+      cursor: pointer;
+      border-radius: 8px;
+      background: none;
+      border: 0.5px solid rgba(0,0,0,0.2);
+      color: #c0392b;
+    }
+    .reset-btn:hover { background: #fdf0ee; }
+    .reset-btn:active { transform: scale(0.98); }
+
+    .rule-note {
+      font-size: 12px;
+      color: #888;
+      margin-top: 10px;
+      padding: 7px 10px;
+      background: #f5f4f0;
+      border-radius: 8px;
+      line-height: 1.6;
+    }
+
+    .inline-val { font-size: 13px; color: #1a1a18; text-align: right; white-space: nowrap; }
+    .adj-note { font-size: 11px; color: #b45309; }
+
+    hr.divider { border: none; border-top: 0.5px solid rgba(0,0,0,0.1); margin: 1rem 0; }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 6px 0;
+      font-size: 14px;
+      border-bottom: 0.5px solid rgba(0,0,0,0.08);
+    }
+    .result-label { color: #6b6b68; }
+    .result-val { font-weight: 500; }
+
+    .result-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 10px 0 4px;
+    }
+    .result-total-label { font-size: 14px; font-weight: 500; }
+    .big-num { font-size: 22px; font-weight: 500; }
+
+    .chinese-block {
+      margin-top: 10px;
+      padding: 12px 16px;
+      background: #f5f4f0;
+      border-radius: 8px;
+      font-size: 24px;
+      font-weight: 500;
+      color: #1a1a18;
+      letter-spacing: 0.08em;
+      line-height: 1.4;
+    }
+
+    .item-result { background: #f5f4f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 6px; }
+    .item-result-name { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+    .item-result-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .item-result-grid .lbl { font-size: 11px; color: #6b6b68; margin-bottom: 2px; }
+    .item-result-grid .val { font-size: 13px; font-weight: 500; }
+
+    .sum-check { font-size: 13px; margin-top: 8px; padding: 7px 12px; border-radius: 8px; }
+    .sum-ok { background: #eaf5ea; color: #1e6e1e; }
+    .sum-warn { background: #fdf0ee; color: #c0392b; }
+
+    #resultCard { display: none; }
+
+    @media (max-width: 480px) {
+      .top-row { grid-template-columns: 1fr; }
+      .item-result-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>三聯式發票開立計算工具</h1>
+
+  <div class="card">
+    <div class="header-row">
+      <div class="section-title">基本設定</div>
+      <button class="reset-btn" id="resetBtn">✕ 清除所有資料</button>
+    </div>
+    <div class="top-row">
+      <div>
+        <label for="totalAmt">含稅總金額（元，整數）</label>
+        <input type="number" id="totalAmt" placeholder="例如：10500" min="1" step="1" />
+      </div>
+      <div>
+        <label>稅率</label>
+        <div class="tax-info">
+          <span class="tax-badge">5%</span>
+          <span>台灣統一發票固定稅率</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">品項明細（最多5項，空白列自動略過）</div>
+    <table class="items">
+      <thead>
+        <tr>
+          <th style="width:22%">品名</th>
+          <th class="r" style="width:10%">數量</th>
+          <th class="r" style="width:13%">佔比%</th>
+          <th class="r" style="width:23%">稅前單價</th>
+          <th class="r" style="width:28%">未稅小計</th>
+          <th style="width:4%"></th>
+        </tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+    <div class="rule-note">單價可有小數點；未稅小計、稅額均四捨五入至整數；銷售額＋稅額＝含稅總計</div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <div class="section-title">計算結果</div>
+    <div id="resultBody"></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var chD = ['零','壹','貳','參','肆','伍','陸','柒','捌','玖'];
+  var chU = ['','拾','佰','仟'];
+  var chS = ['','萬','億','兆'];
+
+  function toChineseInt(n) {
+    n = Math.floor(Math.abs(n));
+    if (n === 0) return '零';
+    var str = String(n), sects = [];
+    while (str.length) { sects.unshift(str.slice(-4)); str = str.slice(0, -4); }
+    var result = '';
+    sects.forEach(function(sect, si) {
+      var sn = parseInt(sect);
+      if (sn === 0) { result += '零'; return; }
+      var ss = '', zero = false;
+      for (var i = sect.length - 1; i >= 0; i--) {
+        var d = parseInt(sect[sect.length - 1 - i]);
+        if (d === 0) { zero = true; }
+        else { if (zero) { ss += '零'; zero = false; } ss += chD[d] + chU[i]; }
+      }
+      result += ss + chS[sects.length - 1 - si];
+    });
+    result = result.replace(/零+/g, '零').replace(/零$/, '');
+    if (result.indexOf('壹拾') === 0) result = result.slice(1);
+    return result;
+  }
+
+  function toChinese(n) { return toChineseInt(Math.round(n)) + '元整'; }
+  function fmt(n) { return Math.round(n).toLocaleString('zh-TW'); }
+  function fmt2(n) {
+    return (Math.round(n * 100) / 100).toLocaleString('zh-TW', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // 5 列資料
+  var data = [];
+  for (var i = 0; i < 5; i++) data.push({name:'', qty:'', ratio:null});
+
+  function resetAll() {
+    document.getElementById('totalAmt').value = '';
+    for (var i = 0; i < 5; i++) data[i] = {name:'', qty:'', ratio:null};
+    buildTable();
+    document.getElementById('resultCard').style.display = 'none';
+  }
+
+  function buildTable() {
+    var tbody = document.getElementById('itemsBody');
+    tbody.innerHTML = '';
+    for (var i = 0; i < 5; i++) {
+      (function(idx) {
+        var tr = document.createElement('tr');
+
+        // 品名
+        var tdName = document.createElement('td');
+        var inName = document.createElement('input');
+        inName.type = 'text'; inName.placeholder = '品名'; inName.value = data[idx].name;
+        inName.addEventListener('input', function() { data[idx].name = this.value; calc(); });
+        tdName.appendChild(inName);
+
+        // 數量
+        var tdQty = document.createElement('td');
+        var inQty = document.createElement('input');
+        inQty.type = 'number'; inQty.placeholder = '數量'; inQty.min = '1'; inQty.step = '1';
+        inQty.style.textAlign = 'right'; inQty.value = data[idx].qty;
+        inQty.addEventListener('input', function() { data[idx].qty = this.value; calc(); });
+        tdQty.appendChild(inQty);
+
+        // 佔比
+        var tdRatio = document.createElement('td');
+        var inRatio = document.createElement('input');
+        inRatio.type = 'number'; inRatio.placeholder = '自動'; inRatio.min = '0.1'; inRatio.max = '100'; inRatio.step = '0.1';
+        inRatio.style.textAlign = 'right';
+        if (data[idx].ratio !== null) inRatio.value = data[idx].ratio;
+        inRatio.addEventListener('input', function() { data[idx].ratio = this.value === '' ? null : parseFloat(this.value); calc(); });
+        tdRatio.appendChild(inRatio);
+
+        // 稅前單價（唯讀顯示）
+        var tdUp = document.createElement('td');
+        tdUp.className = 'inline-val'; tdUp.id = 'up_' + idx; tdUp.innerHTML = '—';
+
+        // 未稅小計（唯讀顯示）
+        var tdSub = document.createElement('td');
+        tdSub.className = 'inline-val'; tdSub.id = 'sub_' + idx; tdSub.textContent = '—';
+
+        // 清除按鈕
+        var tdBtn = document.createElement('td');
+        var btn = document.createElement('button');
+        btn.className = 'row-clear-btn'; btn.title = '清除此列'; btn.textContent = '✕';
+        btn.addEventListener('click', function() {
+          data[idx] = {name:'', qty:'', ratio:null};
+          buildTable(); calc();
+        });
+        tdBtn.appendChild(btn);
+
+        tr.appendChild(tdName);
+        tr.appendChild(tdQty);
+        tr.appendChild(tdRatio);
+        tr.appendChild(tdUp);
+        tr.appendChild(tdSub);
+        tr.appendChild(tdBtn);
+        tbody.appendChild(tr);
+      })(i);
+    }
+  }
+
+  function calc() {
+    var rawVal = document.getElementById('totalAmt').value;
+    var total = rawVal === '' ? NaN : Math.round(parseFloat(rawVal));
+    var rc = document.getElementById('resultCard');
+    var rb = document.getElementById('resultBody');
+
+    // 清空顯示欄
+    for (var i = 0; i < 5; i++) {
+      var u = document.getElementById('up_' + i);
+      var s = document.getElementById('sub_' + i);
+      if (u) u.innerHTML = '—';
+      if (s) s.textContent = '—';
+    }
+
+    if (isNaN(total) || total <= 0) { rc.style.display = 'none'; return; }
+
+    // 有效品項
+    var activeIdx = [];
+    for (var i = 0; i < 5; i++) {
+      if (data[i].name.trim() !== '' || data[i].ratio !== null) activeIdx.push(i);
+    }
+
+    var items;
+    var fallback = activeIdx.length === 0;
+    if (fallback) {
+      items = [{rowIdx: -1, name: '商品一批', qty: 1, ratio: null}];
+    } else {
+      items = activeIdx.map(function(idx) {
+        return {
+          rowIdx: idx,
+          name: data[idx].name.trim() || ('品項 ' + (idx + 1)),
+          qty: parseInt(data[idx].qty) || 1,
+          ratio: data[idx].ratio
+        };
+      });
+    }
+
+    var n = items.length;
+    var setSum = 0;
+    var nullCnt = 0;
+    for (var i = 0; i < n; i++) {
+      if (items[i].ratio !== null) setSum += items[i].ratio;
+      else nullCnt++;
+    }
+    var autoEach = nullCnt > 0 ? (100 - setSum) / nullCnt : 0;
+    var ratios = items.map(function(it) { return it.ratio !== null ? it.ratio : autoEach; });
+    var ratioTotal = ratios.reduce(function(a,b){return a+b;}, 0);
+
+    var results = [];
+    var runWithTax = 0;
+    for (var i = 0; i < n; i++) {
+      var it = items[i];
+      var qty = it.qty;
+      var allocWithTax = total * ratios[i] / ratioTotal;
+      var unitPriceExact = allocWithTax / 1.05 / qty;
+      var unitPrice, preSub, taxAmt, withTax;
+      if (i < n - 1) {
+        unitPrice = Math.floor(unitPriceExact * 100) / 100;
+        preSub    = Math.round(unitPrice * qty);
+        taxAmt    = Math.round(preSub * 0.05);
+        withTax   = preSub + taxAmt;
+        runWithTax += withTax;
+      } else {
+        withTax   = total - runWithTax;
+        preSub    = Math.round(withTax / 1.05);
+        taxAmt    = withTax - preSub;
+        unitPrice = Math.round(preSub / qty * 100) / 100;
+      }
+      results.push({rowIdx: it.rowIdx, name: it.name, qty: qty, unitPrice: unitPrice, preSub: preSub, taxAmt: taxAmt, withTax: withTax});
+    }
+
+    // 更新表格欄位
+    for (var i = 0; i < results.length; i++) {
+      var res = results[i];
+      if (res.rowIdx >= 0) {
+        var isAdj = (i === n - 1 && n > 1);
+        var uEl = document.getElementById('up_' + res.rowIdx);
+        var sEl = document.getElementById('sub_' + res.rowIdx);
+        if (uEl) uEl.innerHTML = fmt2(res.unitPrice) + (isAdj ? '<div class="adj-note">（補差）</div>' : '');
+        if (sEl) sEl.textContent = fmt(res.preSub);
+      }
+    }
+
+    // 合計
+    var totalPre = 0, totalTax = 0, grandTotal = 0;
+    for (var i = 0; i < results.length; i++) {
+      totalPre  += results[i].preSub;
+      totalTax  += results[i].taxAmt;
+      grandTotal += results[i].withTax;
+    }
+
+    // 結果 HTML
+    var html = '<div class="section-title" style="margin-bottom:10px">各品項明細</div>';
+    for (var i = 0; i < results.length; i++) {
+      var res = results[i];
+      html += '<div class="item-result">' +
+        '<div class="item-result-name">' + esc(res.name) + '</div>' +
+        '<div class="item-result-grid">' +
+          '<div><div class="lbl">數量</div><div class="val">' + res.qty + '</div></div>' +
+          '<div><div class="lbl">稅前單價</div><div class="val">' + fmt2(res.unitPrice) + '</div></div>' +
+          '<div><div class="lbl">未稅小計</div><div class="val">' + fmt(res.preSub) + '</div></div>' +
+          '<div><div class="lbl">稅額</div><div class="val">' + fmt(res.taxAmt) + '</div></div>' +
+        '</div></div>';
+    }
+    html += '<hr class="divider">' +
+      '<div class="result-row"><span class="result-label">銷售額合計（未稅）</span><span class="result-val">' + fmt(totalPre) + ' 元</span></div>' +
+      '<div class="result-row"><span class="result-label">營業稅額 (5%)</span><span class="result-val">' + fmt(totalTax) + ' 元</span></div>' +
+      '<div class="result-total"><span class="result-total-label">含稅總計</span><span class="big-num">' + fmt(grandTotal) + ' 元</span></div>' +
+      '<div class="chinese-block">' + toChinese(grandTotal) + '</div>';
+
+    var diff = grandTotal - total;
+    var ok = diff === 0;
+    html += '<div class="sum-check ' + (ok ? 'sum-ok' : 'sum-warn') + '">' +
+      (ok ? '✓ 銷售額＋稅額＝含稅總計，完全相符' : '△ 與設定總金額差 ' + (diff > 0 ? '+' : '') + diff + ' 元') +
+      '</div>';
+
+    rb.innerHTML = html;
+    rc.style.display = 'block';
+  }
+
+  // 初始化
+  document.getElementById('resetBtn').addEventListener('click', resetAll);
+  document.getElementById('totalAmt').addEventListener('input', calc);
+  buildTable();
+})();
+</script>
+</body>
+</html>
